@@ -1,0 +1,162 @@
+<?xml version="1.0" ?>
+<project name="Deployment Phing Project" basedir="." default="deploy">
+<property name="version" value="1.0" />
+
+<!-- Public targets -->
+<target name="sync:list" description="List files">
+  <phingcall target="-sync-execute-task">
+    <property name="listonly" value="true" />
+  </phingcall>
+</target>
+
+<target name="sync" description="Copy files">
+  <phingcall target="-sync-execute-task">
+    <property name="listonly" value="false" />
+  </phingcall>
+</target>
+
+<!-- Private targets -->
+<target name="-init" description="Load main settings">
+  <tstamp />
+  <property file="build.properties" />
+</target>
+
+<target name="-sync-execute-task" depends="-init">
+  <property file="${sync.propertyfile}" />
+
+  <if>
+    <not>
+      <isset property="sync.options" />
+    </not>
+    <then>
+      <property name="sync.options" value="-az" override="true" />
+      <echo message="The value of sync.options has been set to -az" />
+    </then>
+  </if>
+
+  <if>
+    <not>
+      <isset property="sync.verbose" />
+    </not>
+    <then>
+      <property name="sync.verbose" value="true" override="true" />
+      <echo message="The value of sync.verbose has been set to true" />
+    </then>
+  </if>
+
+  <if>
+    <not>
+      <isset property="sync.delete" />
+    </not>
+    <then>
+      <property name="sync.delete" value="false" override="true" />
+      <echo message="The value of sync.delete has been set to false" />
+    </then>
+  </if>
+  <if>
+    <not>
+      <isset property="sync.copyLinks" />
+    </not>
+    <then>
+      <property name="sync.copyLinks" value="false" override="true" />
+      <echo message="The value of sync.copyLinks has been set to false" />
+    </then>
+  </if>
+  <if>
+    <not>
+      <isset property="sync.links" />
+    </not>
+    <then>
+      <property name="sync.links" value="false" override="true" />
+      <echo message="The value of sync.links has been set to false" />
+    </then>
+  </if>
+  <if>
+    <not>
+      <isset property="sync.keepDirLinks" />
+    </not>
+    <then>
+      <property name="sync.keepDirLinks" value="false" override="true" />
+      <echo message="The value of sync.keepDirLinks has been set to false" />
+    </then>
+  </if>
+  <property name="sync.remote.auth" value="${sync.remote.user}@${sync.remote.host}" />
+  <taskdef name="sync" classname="phing.tasks.ext.FileSyncTask" />
+  <sync
+    options="${sync.options}"
+    sourcedir="${sync.source.projectdir}"
+    destinationdir="${sync.remote.auth}:${sync.destination.projectdir}"
+    backupdir="${sync.destination.projectdir}${sync.destination.backupdir}"
+	backupdirtimestamp="${sync.destination.backupdirtimestamp}"
+	excludefile="${sync.exclude.file}"
+    listonly="${listonly}"
+    delete="${sync.delete}"
+    links="${sync.links}"
+    copyLinks="${sync.copyLinks}"
+    keepDirLinks="${sync.keepDirLinks}"
+    verbose="${sync.verbose}" />
+</target>
+
+<taskdef name="minify" classname="phing.tasks.ext.kpMinTask" />
+
+<target name="minify-js" depends="-init">
+    <echo>--------------------------------</echo>
+    <echo>| Minify javascript to release |</echo>
+    <echo>--------------------------------</echo>
+    <minify targetDir="${sync.source.projectdir}/public/resources/js/min"
+              yuiPath="phing/tools/yuicompressor.jar">
+        <fileset dir="${sync.source.projectdir}/public/resources/js">
+          <exclude name="min/"/>
+          <exclude name="**/*-min.js"/>
+          <exclude name="**/*.min.js"/>
+          <include name="**/*.js"/>
+        </fileset>
+    </minify>
+</target>
+
+<target name="minify-css" depends="-init">
+    <echo>--------------------------------</echo>
+    <echo>| Minify CSS to release |</echo>
+    <echo>--------------------------------</echo>
+    <minify targetDir="${sync.source.projectdir}/public/resources/css/min"
+              yuiPath="phing/tools/yuicompressor.jar">
+        <fileset dir="${sync.source.projectdir}/public/resources/css">
+          <exclude name="min/"/>
+          <exclude name="**/*-min.css"/>
+          <exclude name="**/*.min.css"/>
+          <include name="**/*.css"/>
+        </fileset>
+    </minify>
+</target>
+
+<target name="version-patch">
+	<phingcall target="-release">
+        <property name="release.type" value="Bugfix" />
+    </phingcall>
+</target>
+<target name="version-minor">
+	<phingcall target="-release">
+        <property name="release.type" value="Minor" />
+    </phingcall>
+</target>
+<target name="version-major">
+	<phingcall target="-release">
+        <property name="release.type" value="Major" />
+    </phingcall>
+</target>
+<target name="-release" depends="-init" description="Increments parts of the version stored data/version.txt">
+	<if>
+        <isset property="release.type" />
+    <then>
+        <property name="release.type" value="Bugfix" override="true" />
+            <!-- Major.Minor.Bugfix -->
+        	<version releasetype="${release.type}" file="${sync.source.projectdir}/data/version.txt" property="version.number"/>
+        	
+        	<echo msg="Updated version: ${version.number} (${release.type})"/>
+      </then>
+    </if>
+</target>
+
+
+
+</project>
